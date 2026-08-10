@@ -27,6 +27,25 @@ def verify_bearer_token(
     authorization: str | None = Header(default=None),
     x_client_id: str | None = Header(default=None),
 ) -> str:
+    def _reject() -> None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid or missing bearer token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    if not authorization:
+        _reject()
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != SCHEME.lower() or not token:
+        _reject()
+
+    if not secrets.compare_digest(token, get_settings().api_token):
+        _reject()
+
+    return x_client_id or ANONYMOUS_CLIENT
+
     """Kiểm tra header ``Authorization``; trả về client_id nếu hợp lệ.
 
     TODO (CP3):
@@ -56,4 +75,3 @@ def verify_bearer_token(
          ``ANONYMOUS_CLIENT``. client_id này là đơn vị để rate limit và tính
          chi phí.
     """
-    raise NotImplementedError("TODO (CP3): cài đặt verify_bearer_token")
